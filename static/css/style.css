@@ -595,6 +595,17 @@ body::before {
     flex: 1;
 }
 
+.gap-time {
+    font-family: 'Roboto Mono', monospace; /* Monospace for number alignment */
+    font-size: 0.85rem;
+    color: #e10600;
+    font-weight: 700;
+    margin-right: 15px;
+    min-width: 70px;
+    text-align: right;
+    letter-spacing: -0.5px;
+}
+
 .driver-code {
     font-weight: 700;
     font-size: 1.15rem;

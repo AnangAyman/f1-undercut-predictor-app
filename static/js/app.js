@@ -206,12 +206,14 @@ class F1UndercutApp {
                 item.classList.add('selected');
             }
             
+            // Added gap-time div
             item.innerHTML = `
                 <div class="position">${driver.position}</div>
                 <div class="driver-info">
                     <div class="driver-code">${driver.driver}</div>
                     <div class="driver-team">${driver.team}</div>
                 </div>
+                <div class="gap-time">${driver.gap || '--'}</div>
                 <div class="tyre-compound tyre-${driver.compound}">${driver.compound}</div>
             `;
             

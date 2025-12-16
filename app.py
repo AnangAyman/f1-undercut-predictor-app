@@ -297,12 +297,27 @@ def api_standings(year, round_num, lap_number):
                 'driver': str(driver_lap.get('Driver', 'Unknown')),
                 'position': int(driver_lap.get('Position', 99)),
                 'team': str(driver_lap.get('Team', 'Unknown')),
-                'compound': str(driver_lap.get('Compound', 'Unknown'))
+                'compound': str(driver_lap.get('Compound', 'Unknown')),
+                'time': float(driver_lap.get('Time', 0)) if pd.notna(driver_lap.get('Time')) else None
             })
         
         # Sort by position
         drivers_info.sort(key=lambda x: x['position'])
         
+        # Calculate gaps
+        for i in range(len(drivers_info)):
+            if i == 0:
+                drivers_info[i]['gap'] = "Leader"
+            else:
+                current_time = drivers_info[i]['time']
+                prev_time = drivers_info[i-1]['time']
+                
+                if current_time is not None and prev_time is not None:
+                    gap = current_time - prev_time
+                    drivers_info[i]['gap'] = f"+{gap:.3f}s"
+                else:
+                    drivers_info[i]['gap'] = "--"
+
         print(f"Found {len(drivers_info)} drivers for lap {lap_number}")
         return jsonify({'standings': drivers_info})
     except Exception as e:
