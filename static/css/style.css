@@ -311,6 +311,20 @@ body::before {
     50% { opacity: 0.8; transform: scale(1.05); }
 }
 
+/* Button Group */
+.button-group {
+    display: flex;
+    gap: 15px;
+    margin-top: 30px;
+    justify-content: center;
+}
+
+.button-group .predict-button {
+    width: auto;
+    min-width: 200px;
+    margin: 0;
+}
+
 .predict-button {
     background: linear-gradient(135deg, #e10600, #ff3b30);
     color: white;
@@ -329,6 +343,34 @@ body::before {
     box-shadow: 0 8px 25px rgba(225, 6, 0, 0.4);
     position: relative;
     overflow: hidden;
+}
+
+.predict-button.secondary {
+    background: transparent;
+    border: 2px solid #e10600;
+    color: #e10600;
+    box-shadow: none;
+}
+
+.predict-button.secondary:not(:disabled):hover {
+    background: rgba(225, 6, 0, 0.1);
+    border-color: #ff3b30;
+    color: #ff3b30;
+    box-shadow: 0 0 20px rgba(225, 6, 0, 0.2);
+}
+
+.predict-button.secondary:disabled {
+    background: linear-gradient(135deg, #333, #444);
+    border: none;
+    color: white;
+}
+
+.predict-button.secondary::before {
+    display: none;
+}
+
+.predict-button.secondary .spinner {
+    border-top-color: #e10600;
 }
 
 .predict-button::before {
@@ -360,6 +402,145 @@ body::before {
     cursor: not-allowed;
     opacity: 0.5;
     box-shadow: none;
+}
+
+.predict-button:disabled:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+/* Recommended Laps */
+#recommendedLapsList {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.recommended-lap-item {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    padding: 18px;
+    border-left: 4px solid #0066cc;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.recommended-lap-item:hover {
+    background: rgba(255, 255, 255, 0.08);
+    transform: translateX(5px);
+    border-left-color: #0099ff;
+}
+
+.recommended-lap-info {
+    flex: 1;
+}
+
+.recommended-lap-number {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 8px;
+}
+
+.recommended-lap-probability {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.probability-bar {
+    flex: 1;
+    height: 8px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.probability-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #00ff88, #00cc66);
+    border-radius: 4px;
+    transition: width 0.5s ease;
+}
+
+.recommended-lap-probability span {
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: #00ff88;
+    min-width: 60px;
+    text-align: right;
+}
+
+.recommended-lap-actions {
+    margin-left: 15px;
+}
+
+.select-lap-btn {
+    background: rgba(0, 102, 204, 0.2);
+    color: #66b3ff;
+    border: 1px solid rgba(0, 102, 204, 0.5);
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.select-lap-btn:hover {
+    background: rgba(0, 102, 204, 0.3);
+    color: #99ccff;
+    border-color: #0099ff;
+    transform: translateY(-2px);
+}
+
+.recommended-info {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    color: #888;
+    font-size: 0.9rem;
+    font-style: italic;
+}
+
+/* Timing Success Message */
+.timing-success-message {
+    background: rgba(0, 255, 136, 0.1);
+    border: 1px solid rgba(0, 255, 136, 0.3);
+    color: #00ff88;
+    padding: 12px 20px;
+    border-radius: 10px;
+    margin: 10px 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.timing-success-message i {
+    font-size: 1.2rem;
+}
+
+.timing-success-message span {
+    font-weight: 600;
 }
 
 .prediction-result {
@@ -775,6 +956,15 @@ body::before {
         gap: 20px;
     }
 
+    .button-group {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .button-group .predict-button {
+        width: 100%;
+    }
+
     .vs-text {
         font-size: 1.5rem;
     }
@@ -797,5 +987,21 @@ body::before {
     
     .right-panel::after {
         display: none;
+    }
+
+    .recommended-lap-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+    }
+
+    .recommended-lap-actions {
+        margin-left: 0;
+        width: 100%;
+    }
+
+    .select-lap-btn {
+        width: 100%;
+        justify-content: center;
     }
 }
