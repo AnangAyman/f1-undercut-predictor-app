@@ -6,6 +6,7 @@ class F1UndercutApp {
         this.chaserDriver = null;
         this.defenderDriver = null;
         this.standings = [];
+        this.recommendedLapNumbers = []; // New: Store recommended lap numbers
         
         this.init();
     }
@@ -37,6 +38,9 @@ class F1UndercutApp {
             document.getElementById('lapValue').textContent = this.currentLap;
             document.getElementById('currentLapDisplay').textContent = this.currentLap;
             
+            // Update lap value color based on whether it's a recommended lap
+            this.updateLapValueColor();
+            
             if (this.currentYear && this.currentRound && this.currentLap) {
                 this.loadStandings(this.currentYear, this.currentRound, this.currentLap);
             }
@@ -56,6 +60,11 @@ class F1UndercutApp {
         // Predict button
         document.getElementById('predictBtn').addEventListener('click', () => {
             this.predictUndercut();
+        });
+        
+        // Predict Best Timing button
+        document.getElementById('predictTimingBtn').addEventListener('click', () => {
+            this.predictBestTiming();
         });
     }
     
@@ -149,6 +158,10 @@ class F1UndercutApp {
                     document.getElementById('lapValue').textContent = this.currentLap;
                     document.getElementById('currentLapDisplay').textContent = this.currentLap;
                     
+                    // Reset recommended lap highlighting when loading new race
+                    this.recommendedLapNumbers = [];
+                    this.updateLapValueColor();
+                    
                     this.loadStandings(year, round, this.currentLap);
                 } else {
                     this.showError('No valid lap data available (all laps are below 1)');
@@ -206,12 +219,14 @@ class F1UndercutApp {
                 item.classList.add('selected');
             }
             
+            // Added gap-time div
             item.innerHTML = `
                 <div class="position">${driver.position}</div>
                 <div class="driver-info">
                     <div class="driver-code">${driver.driver}</div>
                     <div class="driver-team">${driver.team}</div>
                 </div>
+                <div class="gap-time">${driver.gap || '--'}</div>
                 <div class="tyre-compound tyre-${driver.compound}">${driver.compound}</div>
             `;
             
@@ -271,7 +286,9 @@ class F1UndercutApp {
         this.updateStandingsList();
         
         const predictBtn = document.getElementById('predictBtn');
+        const predictTimingBtn = document.getElementById('predictTimingBtn');
         predictBtn.disabled = !(this.chaserDriver && this.defenderDriver);
+        predictTimingBtn.disabled = !(this.chaserDriver && this.defenderDriver);
         
         document.getElementById('chaserBox').classList.toggle('active', this.chaserDriver !== null);
         document.getElementById('defenderBox').classList.toggle('active', this.defenderDriver !== null);
@@ -281,7 +298,7 @@ class F1UndercutApp {
         if (!this.validateSelection()) return;
         
         try {
-            this.showLoading();
+            this.showLoading('predictBtn');
             const response = await fetch('/api/predict', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
@@ -295,7 +312,7 @@ class F1UndercutApp {
             });
             
             const data = await response.json();
-            this.hideLoading();
+            this.hideLoading('predictBtn');
             
             if (response.ok) {
                 this.displayPrediction(data);
@@ -304,8 +321,175 @@ class F1UndercutApp {
             }
         } catch (error) {
             console.error('Error predicting undercut:', error);
-            this.hideLoading();
+            this.hideLoading('predictBtn');
             this.showError('Failed to get prediction');
+        }
+    }
+    
+    async predictBestTiming() {
+        if (!this.validateSelection()) return;
+        
+        try {
+            this.showLoading('predictTimingBtn');
+            const response = await fetch('/api/best-timing', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    year: this.currentYear,
+                    round_num: this.currentRound,
+                    chaser: this.chaserDriver,
+                    defender: this.defenderDriver
+                })
+            });
+            
+            const data = await response.json();
+            this.hideLoading('predictTimingBtn');
+            
+            if (response.ok) {
+                this.displayRecommendedLaps(data.recommended_laps || data.laps);
+            } else {
+                this.showError(data.error || 'Failed to get best timing');
+            }
+        } catch (error) {
+            console.error('Error predicting best timing:', error);
+            this.hideLoading('predictTimingBtn');
+            this.showError('Failed to get best timing');
+        }
+    }
+    
+    displayRecommendedLaps(laps) {
+        const container = document.getElementById('recommendedLaps');
+        const list = document.getElementById('recommendedLapsList');
+        
+        // Clear previous recommended laps
+        this.recommendedLapNumbers = [];
+        
+        if (!laps || laps.length === 0) {
+            list.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-chart-line"></i>
+                    <p>No timing recommendations available</p>
+                </div>
+            `;
+            container.style.display = 'block';
+            return;
+        }
+        
+        // Sort laps by probability (highest first)
+        laps.sort((a, b) => b.probability - a.probability);
+        
+        // Store lap numbers for highlighting
+        this.recommendedLapNumbers = laps.map(lap => lap.lap);
+        
+        list.innerHTML = '';
+        
+        laps.forEach((lap, index) => {
+            const probability = (lap.probability * 100).toFixed(1);
+            const lapItem = document.createElement('div');
+            lapItem.className = 'recommended-lap-item';
+            lapItem.innerHTML = `
+                <div class="recommended-lap-info">
+                    <div class="recommended-lap-number">Lap ${lap.lap}</div>
+                    <div class="recommended-lap-probability">
+                        <div class="probability-bar">
+                            <div class="probability-fill" style="width: ${probability}%"></div>
+                        </div>
+                        <span>${probability}%</span>
+                    </div>
+                </div>
+                <div class="recommended-lap-actions">
+                    <button class="select-lap-btn" data-lap="${lap.lap}">
+                        <i class="fas fa-sliders-h"></i> Select Lap
+                    </button>
+                </div>
+            `;
+            
+            // Add click event to the select button
+            const selectBtn = lapItem.querySelector('.select-lap-btn');
+            selectBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.selectRecommendedLap(lap.lap);
+            });
+            
+            // Also make the whole item clickable
+            lapItem.addEventListener('click', () => {
+                this.selectRecommendedLap(lap.lap);
+            });
+            
+            list.appendChild(lapItem);
+        });
+        
+        container.style.display = 'block';
+        
+        // Update lap value color if current lap is recommended
+        this.updateLapValueColor();
+        
+        // Scroll to the recommended laps section
+        container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+    
+    // New method: Update lap value color based on whether it's a recommended lap
+    updateLapValueColor() {
+        const lapValueElement = document.getElementById('lapValue');
+        
+        // Remove any previous best-lap class
+        lapValueElement.classList.remove('best-lap');
+        
+        // Add best-lap class if current lap is in recommended laps
+        if (this.currentLap && this.recommendedLapNumbers.includes(this.currentLap)) {
+            lapValueElement.classList.add('best-lap');
+        }
+    }
+    
+    selectRecommendedLap(lap) {
+        // Update slider and current lap
+        const slider = document.getElementById('lapSlider');
+        slider.value = lap;
+        this.currentLap = lap;
+        
+        // Update display
+        document.getElementById('lapValue').textContent = lap;
+        document.getElementById('currentLapDisplay').textContent = lap;
+        
+        // Ensure lap value is highlighted as best lap
+        this.updateLapValueColor();
+        
+        // Load standings for this lap
+        if (this.currentYear && this.currentRound) {
+            this.loadStandings(this.currentYear, this.currentRound, lap);
+        }
+        
+        // Close recommended laps section
+        document.getElementById('recommendedLaps').style.display = 'none';
+        
+        // Show success message
+        this.showTimingSuccessMessage(lap);
+    }
+    
+    showTimingSuccessMessage(lap) {
+        // Remove existing messages
+        const existingMessages = document.querySelectorAll('.timing-success-message');
+        existingMessages.forEach(msg => msg.remove());
+        
+        const message = document.createElement('div');
+        message.className = 'timing-success-message';
+        message.innerHTML = `
+            <i class="fas fa-check-circle"></i>
+            <span>Selected Lap ${lap} for undercut analysis</span>
+        `;
+        
+        // Insert after the driver selection card
+        const middlePanel = document.querySelector('.middle-panel');
+        const driverCard = document.querySelector('.card:nth-child(2)');
+        if (middlePanel && driverCard) {
+            middlePanel.insertBefore(message, driverCard.nextSibling);
+            
+            // Auto-remove after 3 seconds
+            setTimeout(() => {
+                if (message.parentNode) {
+                    message.remove();
+                }
+            }, 3000);
         }
     }
     
@@ -315,6 +499,9 @@ class F1UndercutApp {
         document.getElementById('successBadge').className = `success-badge ${data.success ? 'success' : 'fail'}`;
         document.getElementById('probabilityValue').textContent = `${(data.probability * 100).toFixed(1)}%`;
         document.getElementById('confidenceBadge').textContent = `${data.confidence} Confidence`;
+        
+        // Scroll to prediction result
+        document.getElementById('predictionResult').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
     
     validateSelection() {
@@ -340,16 +527,23 @@ class F1UndercutApp {
         this.currentLap = null;
         this.chaserDriver = null;
         this.defenderDriver = null;
+        this.recommendedLapNumbers = []; // Clear recommended laps
         
         document.getElementById('lapSlider').value = 1;
         document.getElementById('lapSlider').disabled = true;
         document.getElementById('lapValue').textContent = '1';
         document.getElementById('currentLapDisplay').textContent = '1';
+        document.getElementById('lapValue').classList.remove('best-lap'); // Remove highlight
         document.getElementById('chaserSelect').value = '';
         document.getElementById('defenderSelect').value = '';
         document.getElementById('chaserSelect').disabled = true;
         document.getElementById('defenderSelect').disabled = true;
         document.getElementById('predictionResult').style.display = 'none';
+        document.getElementById('recommendedLaps').style.display = 'none';
+        
+        // Disable both buttons
+        document.getElementById('predictBtn').disabled = true;
+        document.getElementById('predictTimingBtn').disabled = true;
         
         document.getElementById('standingsList').innerHTML = `
             <div class="empty-state">
@@ -359,18 +553,24 @@ class F1UndercutApp {
         `;
     }
     
-    showLoading() {
-        const predictBtn = document.getElementById('predictBtn');
-        predictBtn.classList.add('loading');
-        predictBtn.disabled = true;
-        predictBtn.innerHTML = '<div class="spinner"></div>';
+    showLoading(buttonId) {
+        const button = document.getElementById(buttonId);
+        button.classList.add('loading');
+        button.disabled = true;
+        button.innerHTML = '<div class="spinner"></div>';
     }
     
-    hideLoading() {
-        const predictBtn = document.getElementById('predictBtn');
-        predictBtn.classList.remove('loading');
-        predictBtn.disabled = false;
-        predictBtn.textContent = 'Predict Undercut';
+    hideLoading(buttonId) {
+        const button = document.getElementById(buttonId);
+        button.classList.remove('loading');
+        button.disabled = false;
+        
+        // Restore button text based on ID
+        if (buttonId === 'predictBtn') {
+            button.textContent = 'Predict Undercut';
+        } else if (buttonId === 'predictTimingBtn') {
+            button.textContent = 'Predict Best Timing';
+        }
     }
     
     showError(message) {

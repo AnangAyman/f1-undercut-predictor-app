@@ -6,6 +6,7 @@ import joblib
 import os
 import warnings
 from datetime import datetime
+from collections import defaultdict
 
 # Suppress warnings
 warnings.filterwarnings("ignore")
@@ -297,12 +298,27 @@ def api_standings(year, round_num, lap_number):
                 'driver': str(driver_lap.get('Driver', 'Unknown')),
                 'position': int(driver_lap.get('Position', 99)),
                 'team': str(driver_lap.get('Team', 'Unknown')),
-                'compound': str(driver_lap.get('Compound', 'Unknown'))
+                'compound': str(driver_lap.get('Compound', 'Unknown')),
+                'time': float(driver_lap.get('Time', 0)) if pd.notna(driver_lap.get('Time')) else None
             })
         
         # Sort by position
         drivers_info.sort(key=lambda x: x['position'])
         
+        # Calculate gaps
+        for i in range(len(drivers_info)):
+            if i == 0:
+                drivers_info[i]['gap'] = "Leader"
+            else:
+                current_time = drivers_info[i]['time']
+                prev_time = drivers_info[i-1]['time']
+                
+                if current_time is not None and prev_time is not None:
+                    gap = current_time - prev_time
+                    drivers_info[i]['gap'] = f"+{gap:.3f}s"
+                else:
+                    drivers_info[i]['gap'] = "--"
+
         print(f"Found {len(drivers_info)} drivers for lap {lap_number}")
         return jsonify({'standings': drivers_info})
     except Exception as e:
@@ -423,6 +439,127 @@ def api_predict():
         
     except Exception as e:
         print(f"Error in predict endpoint: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/best-timing', methods=['POST'])
+def api_best_timing():
+    """Predict best timing for undercut between two drivers"""
+    try:
+        data = request.json
+        
+        # Validate required parameters
+        required = ['year', 'round_num', 'chaser', 'defender']
+        for param in required:
+            if param not in data:
+                return jsonify({'error': f'Missing parameter: {param}'}), 400
+        
+        year = int(data['year'])
+        round_num = int(data['round_num'])
+        chaser = str(data['chaser'])
+        defender = str(data['defender'])
+        
+        # Get all available pit laps for this race
+        race_pit_laps = pit_laps_summary[
+            (pit_laps_summary['Year'] == year) & 
+            (pit_laps_summary['RoundNumber'] == round_num)
+        ]
+        
+        if race_pit_laps.empty:
+            return jsonify({'recommended_laps': [], 'message': 'No pit data available for this race'})
+        
+        laps = sorted(race_pit_laps['LapNumber'].unique().tolist())
+        
+        # Calculate probabilities for each lap
+        lap_probabilities = []
+        
+        for lap in laps:
+            try:
+                # Calculate features for this lap
+                features = calculate_features(year, round_num, lap, chaser, defender)
+                
+                if features is None:
+                    continue
+                
+                # Create DataFrame for model
+                feature_values = [features.get(feat, 0) for feat in CORE_FEATURES]
+                X = pd.DataFrame([feature_values], columns=CORE_FEATURES)
+                
+                # Get probability from model
+                if model is not None:
+                    try:
+                        probability = model.predict_proba(X)[0][1]
+                    except:
+                        # Fallback calculation
+                        probability = 0.5
+                        if features['Pace_Delta'] < 0:
+                            probability += 0.2
+                        if features['Gap_To_Ahead'] < 1.0:
+                            probability += 0.15
+                        if features['Rival_Tyre_Age'] > 25:
+                            probability += 0.1
+                        probability = max(0.1, min(0.9, probability))
+                else:
+                    # Fallback calculation without model
+                    probability = 0.5
+                    if features['Pace_Delta'] < 0:
+                        probability += 0.25
+                    if features['Gap_To_Ahead'] < 1.5:
+                        probability += 0.2
+                    if features['Rival_Tyre_Age'] > 20:
+                        probability += 0.15
+                    if features['Pit_Aggressiveness'] > 0:
+                        probability += 0.1
+                    probability = max(0.2, min(0.95, probability))
+                
+                lap_probabilities.append({
+                    'lap': lap,
+                    'probability': float(probability),
+                    'features': features
+                })
+                
+            except Exception as e:
+                print(f"Error calculating probability for lap {lap}: {e}")
+                continue
+        
+        if not lap_probabilities:
+            return jsonify({'recommended_laps': [], 'message': 'Could not calculate probabilities for any laps'})
+        
+        # Sort by probability (highest first)
+        lap_probabilities.sort(key=lambda x: x['probability'], reverse=True)
+        
+        # Take top 5 laps with highest probability
+        top_laps = lap_probabilities[:5]
+        
+        # Also get some context about why these laps are good
+        for lap_data in top_laps:
+            features = lap_data['features']
+            reasons = []
+            
+            if features['Pace_Delta'] < 0:
+                reasons.append(f"Chaser is {abs(features['Pace_Delta']):.2f}s faster per lap")
+            if features['Gap_To_Ahead'] < 1.0:
+                reasons.append(f"Close gap ({features['Gap_To_Ahead']:.2f}s) to defender")
+            if features['Rival_Tyre_Age'] > 20:
+                reasons.append(f"Defender's tyres are old ({features['Rival_Tyre_Age']:.0f} laps)")
+            if features['Pit_Aggressiveness'] > 0:
+                reasons.append("Early pit stop strategy")
+            
+            lap_data['reasons'] = reasons
+        
+        result = {
+            'recommended_laps': top_laps,
+            'chaser': chaser,
+            'defender': defender,
+            'total_laps_analyzed': len(lap_probabilities)
+        }
+        
+        print(f"Best timing analysis for {chaser} vs {defender}: Found {len(top_laps)} recommended laps")
+        return jsonify(result)
+        
+    except Exception as e:
+        print(f"Error in best-timing endpoint: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500

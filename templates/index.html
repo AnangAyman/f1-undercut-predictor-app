@@ -62,7 +62,21 @@
                     </div>
                 </div>
                 
-                <button id="predictBtn" class="predict-button" disabled>Predict Undercut</button>
+                <div class="button-group">
+                    <button id="predictBtn" class="predict-button" disabled>Predict Undercut</button>
+                    <button id="predictTimingBtn" class="predict-button secondary" disabled>Predict Best Timing</button>
+                </div>
+            </div>
+            
+            <!-- Recommended Laps -->
+            <div class="card" id="recommendedLaps" style="display: none;">
+                <h3>Recommended Laps for Undercut</h3>
+                <div id="recommendedLapsList">
+                    <!-- Will be populated dynamically -->
+                </div>
+                <div class="recommended-info">
+                    <p>These laps show the highest predicted success rates for an undercut strategy.</p>
+                </div>
             </div>
             
             <!-- Prediction Result -->
