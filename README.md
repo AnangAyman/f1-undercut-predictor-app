@@ -1,5 +1,7 @@
 # 🏎️ F1 Undercut Predictor
 
+![F1 Undercut Predictor App Interface](docs/assets/f1undercut-image-dashboard.png)
+
 A Machine Learning-powered web application that analyzes Formula 1 race data to predict the success of an undercut strategy between two drivers. 
 
 An undercut is a strategic pit stop maneuver where a chasing driver pits earlier than the defending driver ahead of them, utilizing the performance advantage of fresh tires to close the gap and overtake the defender once they make their own pit stop.
@@ -48,6 +50,28 @@ The machine learning model uses 7 core metrics calculated at the time of the pit
 6. InLap_Sec: Chaser's pace entering the pits.
 7. OutLap_Sec: Chaser's pace exiting the pits.
 
+## 🚀 Quick Start / Installation
+
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/yourusername/f1-undercut-predictor-app.git
+   cd f1-undercut-predictor-app
+   ```
+
+2. **Install dependencies**:
+   Ensure you have Python installed, then run:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. **Run the application**:
+   ```bash
+   python app.py
+   ```
+   The app will be available at `http://127.0.0.1:5000` in your web browser.
+
+*(Note: Pre-extracted historical race data is provided in the `f1_data/` folder. To manually fetch new data, you can execute `python extract_f1_data.py`.)*
+
 ## 💻 Usage Guide
 
 Once the application is running, you can interact with it via your web browser:
@@ -58,6 +82,8 @@ Once the application is running, you can interact with it via your web browser:
 4. Predict:
    * Click "Predict Undercut" to see the probability of success if the chaser pits on the currently selected lap.
    * Click "Predict Best Timing" to calculate and rank the top 5 most optimal laps for the chaser to pit.
+
+![Prediction Results](docs/assets/f1undercut-image-prediction.png)
 
 ## ⚠️ Disclaimer
 
